@@ -1,443 +1,167 @@
 /**
  * @file datetime.hpp
- * @brief Combined date and time representation
+ * @brief Modern C++20 DateTime Library - Main Header
  * @author zuudevs (zuudevs@gmail.com)
- * @version 2.0
+ * @version 1.0
  * @date 2025-11-24
+ * 
+ * @mainpage DateTime Library Documentation
+ * 
+ * @section intro_sec Introduction
+ * 
+ * A lightweight, high-performance C++20 datetime library with:
+ * - Extended year range (1-9999)
+ * - Nanosecond precision
+ * - Full compile-time support (constexpr)
+ * - Zero-copy string formatting
+ * - ISO 8601 support
+ * - C++20 spaceship operators
+ * - Modular design
+ * 
+ * @section install_sec Installation
+ * 
+ * This is a header-only library. Simply include datetime.hpp:
+ * @code
+ * #include "datetime.hpp"
+ * @endcode
+ * 
+ * @section usage_sec Basic Usage
+ * 
+ * @subsection date_usage Date Operations
+ * @code
+ * // Create a date
+ * constexpr dt::Date d(2024, 12, 25);
+ * 
+ * // Get components
+ * int year = d.year();           // 2024
+ * int month = d.month();         // 12
+ * int day_of_week = d.day_of_week(); // 0-6 (0=Monday)
+ * 
+ * // Arithmetic
+ * dt::Date tomorrow = d;
+ * tomorrow.add_days(1);
+ * 
+ * // Formatting
+ * std::cout << d.format("%Y-%m-%d") << std::endl;  // "2024-12-25"
+ * std::cout << d.format("%A, %B %d, %Y") << std::endl;  // "Wednesday, December 25, 2024"
+ * @endcode
+ * 
+ * @subsection time_usage Time Operations
+ * @code
+ * // Create a time
+ * constexpr dt::Time t(14, 30, 45, 123456789);
+ * 
+ * // Get components
+ * int hour = t.hour();           // 14
+ * int minute = t.minute();       // 30
+ * int second = t.second();       // 45
+ * int nano = t.nanosecond();     // 123456789
+ * 
+ * // Arithmetic
+ * dt::Time later = t;
+ * later.add_hours(2);
+ * 
+ * // Formatting
+ * std::cout << t.format("%H:%M:%S") << std::endl;      // "14:30:45"
+ * std::cout << t.format("%H:%M:%S.%N") << std::endl;   // "14:30:45.123456789"
+ * @endcode
+ * 
+ * @subsection datetime_usage DateTime Operations
+ * @code
+ * // Create a datetime
+ * constexpr dt::DateTime dt(2024, 12, 25, 14, 30, 45);
+ * 
+ * // Get current time
+ * auto now = dt::DateTime::now();
+ * 
+ * // Arithmetic with overflow handling
+ * dt::DateTime future = dt;
+ * future.add_days(7);
+ * future.add_hours(25);  // Automatically handles day overflow
+ * 
+ * // Calculate differences
+ * int64_t seconds_diff = future.seconds_between(dt);
+ * 
+ * // ISO 8601 formatting
+ * std::cout << dt.to_iso8601() << std::endl;  // "2024-12-25T14:30:45"
+ * @endcode
+ * 
+ * @subsection constexpr_usage Compile-Time Calculations
+ * @code
+ * // All operations are constexpr-compatible
+ * constexpr dt::Date christmas(2024, 12, 25);
+ * constexpr int day_of_week = christmas.day_of_week();
+ * constexpr bool is_leap = dt::is_leap_year(2024);
+ * 
+ * static_assert(day_of_week == 2);  // Wednesday
+ * static_assert(is_leap == true);
+ * @endcode
+ * 
+ * @section features_sec Features
+ * 
+ * @subsection format_sec Formatting Options
+ * 
+ * Date Format Specifiers:
+ * - %Y: Year (0001-9999)
+ * - %m: Month (01-12)
+ * - %d: Day (01-31)
+ * - %w: Day of week (0-6, 0=Monday)
+ * - %j: Day of year (001-366)
+ * - %q: Quarter (1-4)
+ * - %W: Week number (01-53)
+ * - %B: Full month name ("January")
+ * - %b: Short month name ("Jan")
+ * - %A: Full weekday name ("Monday")
+ * - %a: Short weekday name ("Mon")
+ * 
+ * Time Format Specifiers:
+ * - %H: Hour (00-23)
+ * - %M: Minute (00-59)
+ * - %S: Second (00-59)
+ * - %f: Millisecond (000-999)
+ * - %u: Microsecond (000000-999999)
+ * - %N: Nanosecond (000000000-999999999)
+ * 
+ * @subsection perf_sec Performance
+ * 
+ * - Zero-copy formatting where possible
+ * - Optimized integer-to-string conversion
+ * - Cache-friendly memory layout
+ * - Minimal branching in hot paths
+ * - Constexpr for compile-time evaluation
+ * 
+ * @copyright Unrestricted - Public Domain
  */
 
 #pragma once
 
-#include "datetime_config.hpp"
-#include "date.hpp"
-#include "time.hpp"
-#include <string>
-#include <string_view>
-#include <compare>
-
-namespace dt {
+// Include all components
+#include "date_core.hpp"
+#include "time_core.hpp"
+#include "datetime_core.hpp"
 
 /**
- * @class DateTime
- * @brief Represents a complete timestamp with nanosecond precision
- * 
- * @details
- * Combines Date and Time into a single moment in time.
- * Memory: 12 bytes (4 bytes date + 8 bytes time)
- * 
- * Features:
- * - Nanosecond precision timestamps
- * - Constexpr support
- * - ISO 8601 format
- * - Combined date/time arithmetic
- * - Automatic overflow handling
+ * @namespace zuu
+ * @brief Main namespace for datetime operations
  */
-class DateTime {
-private:
-    Date date_;
-    Time time_;
+namespace zuu {
 
-public:
-    /**
-     * @brief Default constructor - creates 0001-01-01 00:00:00.000000000
-     */
-    constexpr DateTime() noexcept = default;
-    
-    /**
-     * @brief Construct from Date and Time components
-     * @param d Date object
-     * @param t Time object (default: midnight)
-     */
-    constexpr DateTime(const Date& d, const Time& t = Time()) noexcept 
-        : date_(d), time_(t) {}
-    
-    /**
-     * @brief Construct from separate components
-     * @param year Year [1-9999]
-     * @param month Month [1-12]
-     * @param day Day [1-31]
-     * @param hour Hour [0-23] (default: 0)
-     * @param minute Minute [0-59] (default: 0)
-     * @param second Second [0-59] (default: 0)
-     * @param nanosecond Nanosecond [0-999999999] (default: 0)
-     * @throw std::out_of_range if any component is invalid
-     */
-    constexpr DateTime(int year, int month, int day, 
-                      int hour = 0, int minute = 0, int second = 0, int nanosecond = 0)
-        : date_(year, month, day), time_(hour, minute, second, nanosecond) {}
+// Version information
+constexpr int VERSION_MAJOR = 1;
+constexpr int VERSION_MINOR = 0;
+constexpr int VERSION_PATCH = 1;
 
-    // ========================================================================
-    // Component Accessors
-    // ========================================================================
-    
-    /**
-     * @brief Get date component
-     * @return Const reference to Date
-     */
-    [[nodiscard]] constexpr const Date& get_date() const noexcept { return date_; }
-    
-    /**
-     * @brief Get time component
-     * @return Const reference to Time
-     */
-    [[nodiscard]] constexpr const Time& get_time() const noexcept { return time_; }
-    
-    /**
-     * @brief Get mutable date component
-     * @return Reference to Date
-     */
-    [[nodiscard]] constexpr Date& get_date() noexcept { return date_; }
-    
-    /**
-     * @brief Get mutable time component
-     * @return Reference to Time
-     */
-    [[nodiscard]] constexpr Time& get_time() noexcept { return time_; }
-    
-    // Convenience accessors for date components
-    [[nodiscard]] constexpr int year() const noexcept { return date_.year(); }
-    [[nodiscard]] constexpr int month() const noexcept { return date_.month(); }
-    [[nodiscard]] constexpr int day() const noexcept { return date_.day(); }
-    [[nodiscard]] constexpr int day_of_week() const noexcept { return date_.day_of_week(); }
-    [[nodiscard]] constexpr int day_of_year() const noexcept { return date_.day_of_year(); }
-    [[nodiscard]] constexpr int quarter() const noexcept { return date_.quarter(); }
-    
-    // Convenience accessors for time components
-    [[nodiscard]] constexpr int hour() const noexcept { return time_.hour(); }
-    [[nodiscard]] constexpr int minute() const noexcept { return time_.minute(); }
-    [[nodiscard]] constexpr int second() const noexcept { return time_.second(); }
-    [[nodiscard]] constexpr int nanosecond() const noexcept { return time_.nanosecond(); }
-    [[nodiscard]] constexpr int millisecond() const noexcept { return time_.millisecond(); }
-    [[nodiscard]] constexpr int microsecond() const noexcept { return time_.microsecond(); }
+/**
+ * @brief Get library version string
+ * @return Version string in format "X.Y.Z"
+ */
+constexpr const char* version() noexcept {
+    return "1.0.1";
+}
 
-    // ========================================================================
-    // Static Factory Methods
-    // ========================================================================
-    
-    /**
-     * @brief Get current system datetime
-     * @return DateTime object representing current moment
-     */
-    [[nodiscard]] static DateTime now() noexcept {
-        return DateTime(Date::today(), Time::now());
-    }
-    
-    /**
-     * @brief Create DateTime from Unix timestamp (seconds since epoch)
-     * @param seconds Unix timestamp in seconds
-     * @return DateTime object
-     * @note Epoch is 1970-01-01 00:00:00 UTC
-     */
-    [[nodiscard]] static DateTime from_unix_timestamp(int64_t seconds) noexcept {
-        // Unix epoch: 1970-01-01
-        Date epoch(1970, 1, 1);
-        
-        int64_t days = seconds / detail::SECONDS_PER_DAY;
-        int64_t remaining_seconds = seconds % detail::SECONDS_PER_DAY;
-        
-        if (remaining_seconds < 0) {
-            days--;
-            remaining_seconds += detail::SECONDS_PER_DAY;
-        }
-        
-        epoch.add_days(static_cast<int32_t>(days));
-        Time time = Time::from_seconds(remaining_seconds);
-        
-        return DateTime(epoch, time);
-    }
+} // namespace zuu
 
-    // ========================================================================
-    // Arithmetic Operations
-    // ========================================================================
-    
-    /**
-     * @brief Add days to this datetime
-     * @param days Number of days to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_days(int32_t days) noexcept {
-        date_.add_days(days);
-        return *this;
-    }
-    
-    /**
-     * @brief Add months to this datetime
-     * @param months Number of months to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_months(int32_t months) noexcept {
-        date_.add_months(months);
-        return *this;
-    }
-    
-    /**
-     * @brief Add years to this datetime
-     * @param years Number of years to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_years(int32_t years) noexcept {
-        date_.add_years(years);
-        return *this;
-    }
-    
-    /**
-     * @brief Add seconds to this datetime
-     * @param seconds Number of seconds to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     * @note Automatically handles day overflow
-     */
-    constexpr DateTime& add_seconds(int64_t seconds) noexcept {
-        if (seconds == 0) return *this;
-        
-        int64_t total_secs = time_.total_seconds() + seconds;
-        
-        // Calculate day overflow
-        int32_t day_overflow = 0;
-        if (total_secs >= detail::SECONDS_PER_DAY) {
-            day_overflow = static_cast<int32_t>(total_secs / detail::SECONDS_PER_DAY);
-            total_secs %= detail::SECONDS_PER_DAY;
-        } else if (total_secs < 0) {
-            day_overflow = static_cast<int32_t>((total_secs - detail::SECONDS_PER_DAY + 1) / detail::SECONDS_PER_DAY);
-            total_secs -= day_overflow * detail::SECONDS_PER_DAY;
-        }
-        
-        // Update date if there's overflow
-        if (day_overflow != 0) {
-            date_.add_days(day_overflow);
-        }
-        
-        // Create new time from remaining seconds, preserving nanoseconds
-        int ns = time_.nanosecond();
-        time_ = Time::from_seconds(total_secs);
-        time_.add_nanoseconds(ns);
-        
-        return *this;
-    }
-    
-    /**
-     * @brief Add minutes to this datetime
-     * @param minutes Number of minutes to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_minutes(int64_t minutes) noexcept {
-        return add_seconds(minutes * detail::SECONDS_PER_MINUTE);
-    }
-    
-    /**
-     * @brief Add hours to this datetime
-     * @param hours Number of hours to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_hours(int64_t hours) noexcept {
-        return add_seconds(hours * detail::SECONDS_PER_HOUR);
-    }
-    
-    /**
-     * @brief Add milliseconds to this datetime
-     * @param milliseconds Number of milliseconds to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_milliseconds(int64_t milliseconds) noexcept {
-        int64_t nanos = milliseconds * detail::NANOS_PER_MILLISECOND;
-        int64_t total_nanos = static_cast<int64_t>(time_.total_nanoseconds()) + nanos;
-        
-        // Calculate day overflow
-        int32_t day_overflow = 0;
-        if (total_nanos >= static_cast<int64_t>(detail::NANOS_PER_DAY)) {
-            day_overflow = static_cast<int32_t>(total_nanos / detail::NANOS_PER_DAY);
-            total_nanos %= detail::NANOS_PER_DAY;
-        } else if (total_nanos < 0) {
-            day_overflow = static_cast<int32_t>((total_nanos - detail::NANOS_PER_DAY + 1) / detail::NANOS_PER_DAY);
-            total_nanos -= day_overflow * detail::NANOS_PER_DAY;
-        }
-        
-        if (day_overflow != 0) {
-            date_.add_days(day_overflow);
-        }
-        
-        time_ = Time(static_cast<uint64_t>(total_nanos));
-        return *this;
-    }
-    
-    /**
-     * @brief Add nanoseconds to this datetime
-     * @param nanoseconds Number of nanoseconds to add (can be negative)
-     * @return Reference to this DateTime for chaining
-     */
-    constexpr DateTime& add_nanoseconds(int64_t nanoseconds) noexcept {
-        int64_t total_nanos = static_cast<int64_t>(time_.total_nanoseconds()) + nanoseconds;
-        
-        int32_t day_overflow = 0;
-        if (total_nanos >= static_cast<int64_t>(detail::NANOS_PER_DAY)) {
-            day_overflow = static_cast<int32_t>(total_nanos / detail::NANOS_PER_DAY);
-            total_nanos %= detail::NANOS_PER_DAY;
-        } else if (total_nanos < 0) {
-            day_overflow = static_cast<int32_t>((total_nanos - detail::NANOS_PER_DAY + 1) / detail::NANOS_PER_DAY);
-            total_nanos -= day_overflow * detail::NANOS_PER_DAY;
-        }
-        
-        if (day_overflow != 0) {
-            date_.add_days(day_overflow);
-        }
-        
-        time_ = Time(static_cast<uint64_t>(total_nanos));
-        return *this;
-    }
-    
-    /**
-     * @brief Calculate total seconds between two datetimes
-     * @param other Other datetime
-     * @return Number of seconds (positive if this > other)
-     */
-    [[nodiscard]] constexpr int64_t seconds_between(const DateTime& other) const noexcept {
-        int32_t day_diff = date_.days_between(other.date_);
-        int64_t sec_diff = time_.total_seconds() - other.time_.total_seconds();
-        return static_cast<int64_t>(day_diff) * detail::SECONDS_PER_DAY + sec_diff;
-    }
-
-    // ========================================================================
-    // Formatting
-    // ========================================================================
-    
-    /**
-     * @brief Format datetime as string
-     * @param fmt Format string (default: "%Y-%m-%d %H:%M:%S")
-     * 
-     * Supports all Date and Time format specifiers
-     * @return Formatted string
-     */
-    [[nodiscard]] std::string format(std::string_view fmt = "%Y-%m-%d %H:%M:%S") const {
-        std::string result;
-        result.reserve(fmt.size() + 32);
-        
-        for (size_t i = 0; i < fmt.size(); ++i) {
-            if (fmt[i] == '%' && i + 1 < fmt.size()) {
-                ++i;
-                char spec = fmt[i];
-                
-                // Try date formats first
-                switch (spec) {
-                    case 'Y': detail::append_4digits(result, year()); break;
-                    case 'm': detail::append_2digits(result, month()); break;
-                    case 'd': detail::append_2digits(result, day()); break;
-                    case 'w': result += static_cast<char>('0' + day_of_week()); break;
-                    case 'j': {
-                        int doy = day_of_year();
-                        result += static_cast<char>('0' + doy / 100);
-                        result += static_cast<char>('0' + (doy / 10) % 10);
-                        result += static_cast<char>('0' + doy % 10);
-                        break;
-                    }
-                    case 'q': result += static_cast<char>('0' + quarter()); break;
-                    case 'B': result += detail::MONTH_NAMES[month() - 1]; break;
-                    case 'b': result += detail::MONTH_ABBREV[month() - 1]; break;
-                    case 'A': result += detail::WEEKDAY_NAMES[day_of_week()]; break;
-                    case 'a': result += detail::WEEKDAY_ABBREV[day_of_week()]; break;
-                    
-                    // Time formats
-                    case 'H': detail::append_2digits(result, hour()); break;
-                    case 'M': detail::append_2digits(result, minute()); break;
-                    case 'S': detail::append_2digits(result, second()); break;
-                    case 'f': {
-                        int ms = millisecond();
-                        result += static_cast<char>('0' + ms / 100);
-                        result += static_cast<char>('0' + (ms / 10) % 10);
-                        result += static_cast<char>('0' + ms % 10);
-                        break;
-                    }
-                    case 'u': {
-                        int us = microsecond();
-                        char buf[6];
-                        for (int j = 5; j >= 0; --j) {
-                            buf[j] = '0' + (us % 10);
-                            us /= 10;
-                        }
-                        result.append(buf, 6);
-                        break;
-                    }
-                    case 'N': detail::append_9digits(result, nanosecond()); break;
-                    case '%': result += '%'; break;
-                    default: result += spec; break;
-                }
-            } else {
-                result += fmt[i];
-            }
-        }
-        return result;
-    }
-    
-    /**
-     * @brief Format as ISO 8601 timestamp
-     * @return String in format: YYYY-MM-DDTHH:MM:SS
-     */
-    [[nodiscard]] std::string to_iso8601() const {
-        return format("%Y-%m-%dT%H:%M:%S");
-    }
-    
-    /**
-     * @brief Format as ISO 8601 with milliseconds
-     * @return String in format: YYYY-MM-DDTHH:MM:SS.fff
-     */
-    [[nodiscard]] std::string to_iso8601_ms() const {
-        return format("%Y-%m-%dT%H:%M:%S.%f");
-    }
-    
-    /**
-     * @brief Format as ISO 8601 with microseconds
-     * @return String in format: YYYY-MM-DDTHH:MM:SS.uuuuuu
-     */
-    [[nodiscard]] std::string to_iso8601_us() const {
-        return format("%Y-%m-%dT%H:%M:%S.%u");
-    }
-    
-    /**
-     * @brief Format as ISO 8601 with nanoseconds
-     * @return String in format: YYYY-MM-DDTHH:MM:SS.nnnnnnnnn
-     */
-    [[nodiscard]] std::string to_iso8601_ns() const {
-        return format("%Y-%m-%dT%H:%M:%S.%N");
-    }
-
-    // ========================================================================
-    // Comparison Operators
-    // ========================================================================
-    
-    /**
-     * @brief Three-way comparison (C++20 spaceship operator)
-     */
-    [[nodiscard]] constexpr std::strong_ordering operator<=>(const DateTime& other) const noexcept {
-        if (auto cmp = date_ <=> other.date_; cmp != 0) return cmp;
-        return time_ <=> other.time_;
-    }
-    
-    /**
-     * @brief Equality comparison
-     */
-    [[nodiscard]] constexpr bool operator==(const DateTime& other) const noexcept {
-        return date_ == other.date_ && time_ == other.time_;
-    }
-
-    // ========================================================================
-    // Conversion Methods
-    // ========================================================================
-    
-    /**
-     * @brief Convert to Unix timestamp (seconds since 1970-01-01)
-     * @return Unix timestamp in seconds
-     */
-    [[nodiscard]] constexpr int64_t to_unix_timestamp() const noexcept {
-        Date epoch(1970, 1, 1);
-        int32_t day_diff = date_.days_between(epoch);
-        return static_cast<int64_t>(day_diff) * detail::SECONDS_PER_DAY + time_.total_seconds();
-    }
-    
-    /**
-     * @brief Convert to Unix timestamp in milliseconds
-     * @return Unix timestamp in milliseconds
-     */
-    [[nodiscard]] constexpr int64_t to_unix_timestamp_ms() const noexcept {
-        return to_unix_timestamp() * 1000 + millisecond();
-    }
-};
-
-} // namespace dt
+/**
+ * @example examples.cpp
+ * Basic usage examples for Date, Time, and DateTime classes
+ */

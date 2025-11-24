@@ -2,7 +2,7 @@
  * @file datetime_config.hpp
  * @brief DateTime Library Configuration and Utilities
  * @author zuudevs (zuudevs@gmail.com)
- * @version 1.0
+ * @version 1.1.1
  * @date 2025-11-24
  */
 
@@ -10,12 +10,12 @@
 
 #include <cstdint>
 #include <array>
-#include <stdexcept>
+#include <string>
 
-namespace dt {
+namespace zuu {
 
 /**
- * @namespace dt::detail
+ * @namespace zuu::detail
  * @brief Internal implementation details
  */
 namespace detail {
@@ -267,4 +267,4 @@ constexpr bool is_valid_time(int hour, int minute, int second, int nanosecond) n
            is_valid_second(second) && is_valid_nanosecond(nanosecond);
 }
 
-} // namespace dt
+} // namespace zuu

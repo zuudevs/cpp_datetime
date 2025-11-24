@@ -1,6 +1,8 @@
-# DateTime Library v1.0
+# DateTime Library - A modern, high-performance C++20 datetime library with nanosecond precision and full compile-time support.
 
-A modern, high-performance C++20 datetime library with nanosecond precision and full compile-time support.
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-orange.svg)](https://github.com/zugyonozz/fstring)
 
 ## 🚀 Features
 
@@ -21,17 +23,17 @@ This is a header-only library. Just copy the files to your project:
 ```bash
 your_project/
 ├── include/
-│   ├── dt.hpp              # Main header (include this)
+│   ├── datetime.hpp              # Main header (include this)
 │   ├── datetime_config.hpp
-│   ├── date.hpp
-│   ├── time.hpp
-│   └── datetime.hpp
+│   ├── date_core.hpp
+│   ├── time_core.hpp
+│   └── datetime_core.hpp
 ```
 
 Then include in your code:
 
 ```cpp
-#include "dt.hpp"
+#include "datetime.hpp"
 ```
 
 ## 🔧 Requirements
@@ -44,7 +46,7 @@ Then include in your code:
 ### Date Operations
 
 ```cpp
-#include "dt.hpp"
+#include "datetime.hpp"
 #include <iostream>
 
 int main() {
@@ -347,7 +349,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## 🔖 Version History
 
-### v2.0.0 (2025-11-24)
+### v1.1.1 (2025-11-24)
 - ✅ Fixed `total_nanos` type (uint32_t → uint64_t)
 - ✅ Fixed `add_seconds()` overflow handling
 - ✅ Fixed `DateTime::add_seconds()` logic
@@ -368,7 +370,7 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## 🎓 Learn More
 
-See `example.cpp` for comprehensive usage examples covering:
+See `examples.cpp` for comprehensive usage examples covering:
 - Basic operations
 - Date/time arithmetic
 - Formatting options
